@@ -1,0 +1,14 @@
+---
+description: Mandatory pre-flight — read the project guidebook before any work
+alwaysApply: true
+---
+
+# Pre-flight
+
+Before implementing, refactoring, or answering with a technical plan:
+
+1. Read `AGENTS.md` and `IMPLEMENTATION.md` at the repo root.
+2. Treat those files as the source of truth for stack, domain language, roles, and phase order.
+3. Do not skip this step because the request looks small.
+
+If a prompt conflicts with the guidebook or the current phase, say so first. Stay in phase unless the user explicitly changes the plan and `IMPLEMENTATION.md` is updated to match.

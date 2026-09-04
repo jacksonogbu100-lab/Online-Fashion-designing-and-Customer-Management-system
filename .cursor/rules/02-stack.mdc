@@ -1,0 +1,29 @@
+---
+description: Next.js monolith conventions for the Sunnex Clothing application
+alwaysApply: true
+---
+
+# Stack conventions
+
+Sunnex Clothing is a single Next.js App Router app (TypeScript, Tailwind, shadcn/ui, Prisma, PostgreSQL, Auth.js).
+
+- Colocate routes under `app/`. Put shared UI in `components/`, domain helpers in `lib/`, schema in `prisma/`.
+- Use Server Components by default. Add `"use client"` only for interactivity.
+- Mutations go through Server Actions or route handlers with Zod validation and server-side role checks.
+- Keep Prisma in server-only modules. Never import the database client into Client Components.
+- Names: `client` for customers of the house, not generic `user`, except for the auth `User` model.
+- Match existing folder patterns once the app is scaffolded. Do not add a separate API framework.
+
+```ts
+// ❌ BAD — db in the browser
+"use client";
+import { prisma } from "@/lib/db";
+
+// ✅ GOOD — server action
+"use server";
+export async function saveClient(input: unknown) {
+  const data = clientSchema.parse(input);
+  await requireStaff();
+  return prisma.client.create({ data });
+}
+```

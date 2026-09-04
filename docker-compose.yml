@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sunnex
+      POSTGRES_PASSWORD: sunnex
+      POSTGRES_DB: sunnex
+    ports:
+      - "5432:5432"
+    volumes:
+      - sunnex_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sunnex -d sunnex"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sunnex_pg:

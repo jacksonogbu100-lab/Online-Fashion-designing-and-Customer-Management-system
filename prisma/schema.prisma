@@ -1,0 +1,458 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  designer
+  staff
+  client
+}
+
+enum UserStatus {
+  active
+  disabled
+}
+
+enum ClientStatus {
+  lead
+  active
+  archived
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String
+  name          String
+  role          Role
+  status        UserStatus   @default(active)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  clientRecord  Client?
+  authoredNotes ClientNote[]
+  designs       Design[]
+  createdOrders Order[]
+  orderEvents   OrderEvent[]
+  assignedAppointments Appointment[] @relation("AppointmentStaff")
+  createdAppointments  Appointment[] @relation("AppointmentCreatedBy")
+  issuedDocuments Document[] @relation("DocumentIssuedBy")
+  recordedPayments Payment[]
+  notifications   Notification[]
+}
+
+model Client {
+  id                  String                @id @default(cuid())
+  displayName         String
+  email               String?               @unique
+  phone               String?
+  addressLine1        String?
+  city                String?
+  region              String?
+  postalCode          String?
+  country             String?
+  styleNotes          String?
+  status              ClientStatus          @default(lead)
+  lastContactedAt     DateTime?
+  portalUserId        String?               @unique
+  portalUser          User?                 @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
+  notes               ClientNote[]
+  measurementProfiles MeasurementProfile[]
+  designs             Design[]
+  orders              Order[]
+  appointments        Appointment[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([displayName])
+  @@index([status])
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  body      String
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@index([clientId, createdAt])
+}
+
+model MeasurementProfile {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  label      String
+  recordedAt DateTime
+  notes      String?
+  isCurrent  Boolean  @default(false)
+  values     Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orders     Order[]
+
+  @@index([clientId, recordedAt])
+  @@index([clientId, isCurrent])
+}
+
+enum CollectionStatus {
+  draft
+  active
+  archived
+}
+
+enum DesignStatus {
+  concept
+  in_development
+  approved
+  archived
+}
+
+enum DesignCategory {
+  jeans
+  trousers
+  shirts
+  jackets
+  other
+}
+
+enum DesignImageKind {
+  sketch
+  drape
+  mood
+}
+
+model Collection {
+  id        String           @id @default(cuid())
+  name      String
+  season    String?
+  status    CollectionStatus @default(draft)
+  notes     String?
+  designs   Design[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
+
+model Design {
+  id                String         @id @default(cuid())
+  title             String
+  description       String?
+  category          DesignCategory
+  status            DesignStatus   @default(concept)
+  colorNotes        String?
+  fabricNotes       String?
+  constructionNotes String?
+  sharedWithClient  Boolean        @default(false)
+  collectionId      String?
+  collection        Collection?    @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  clientId          String?
+  client            Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdById       String
+  createdBy         User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  images            DesignImage[]
+  orders            Order[]
+  materials         DesignMaterial[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([title])
+  @@index([status])
+  @@index([collectionId])
+  @@index([clientId])
+}
+
+model DesignImage {
+  id           String          @id @default(cuid())
+  designId     String
+  design       Design          @relation(fields: [designId], references: [id], onDelete: Cascade)
+  storedName   String
+  originalName String
+  mimeType     String
+  kind         DesignImageKind @default(sketch)
+  sortOrder    Int             @default(0)
+  createdAt    DateTime        @default(now())
+
+  @@index([designId, sortOrder])
+}
+
+enum OrderStatus {
+  inquiry
+  quoted
+  confirmed
+  in_cut
+  in_sew
+  fitting
+  ready
+  delivered
+  cancelled
+}
+
+enum OrderPriority {
+  low
+  normal
+  high
+  rush
+}
+
+enum OrderEventKind {
+  created
+  status_changed
+  note
+}
+
+model Order {
+  id                   String              @id @default(cuid())
+  reference            String              @unique
+  title                String
+  notes                String?
+  status               OrderStatus         @default(inquiry)
+  priority             OrderPriority       @default(normal)
+  dueAt                DateTime?
+  priceEstimateInr     Int?
+  clientId             String
+  client               Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  designId             String?
+  design               Design?             @relation(fields: [designId], references: [id], onDelete: SetNull)
+  measurementProfileId String?
+  measurementProfile   MeasurementProfile? @relation(fields: [measurementProfileId], references: [id], onDelete: SetNull)
+  fitSnapshot          Json?
+  createdById          String
+  createdBy            User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  events               OrderEvent[]
+  appointments         Appointment[]
+  materials            OrderMaterial[]
+  documents            Document[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([clientId, createdAt])
+  @@index([status])
+  @@index([dueAt])
+  @@index([designId])
+}
+
+model OrderEvent {
+  id         String         @id @default(cuid())
+  orderId    String
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorId    String
+  actor      User           @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  kind       OrderEventKind
+  fromStatus OrderStatus?
+  toStatus   OrderStatus?
+  body       String?
+  createdAt  DateTime       @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+enum AppointmentType {
+  consultation
+  measurement
+  fitting
+  pickup
+}
+
+enum AppointmentStatus {
+  scheduled
+  completed
+  no_show
+  cancelled
+}
+
+model Appointment {
+  id          String             @id @default(cuid())
+  type        AppointmentType
+  status      AppointmentStatus  @default(scheduled)
+  startsAt    DateTime
+  endsAt      DateTime
+  location    String
+  notes       String?
+  clientId    String
+  client      Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  orderId     String?
+  order       Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  staffId     String
+  staff       User               @relation("AppointmentStaff", fields: [staffId], references: [id], onDelete: Restrict)
+  createdById String
+  createdBy   User               @relation("AppointmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([startsAt])
+  @@index([staffId, startsAt])
+  @@index([clientId, startsAt])
+  @@index([orderId])
+  @@index([status])
+}
+
+enum MaterialKind {
+  fabric
+  trim
+  lining
+}
+
+enum MaterialUnit {
+  metres
+  pieces
+  rolls
+}
+
+model Material {
+  id          String           @id @default(cuid())
+  name        String
+  kind        MaterialKind
+  color       String?
+  quantity    Decimal          @db.Decimal(12, 2)
+  unit        MaterialUnit
+  supplier    String?
+  lowStockAt  Decimal          @db.Decimal(12, 2)
+  notes       String?
+  designLines DesignMaterial[]
+  orderLines  OrderMaterial[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([name])
+  @@index([kind])
+}
+
+model DesignMaterial {
+  id         String   @id @default(cuid())
+  designId   String
+  design     Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  quantity   Decimal? @db.Decimal(12, 2)
+  notes      String?
+
+  @@unique([designId, materialId])
+}
+
+model OrderMaterial {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  materialId        String
+  material          Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  quantityNeeded    Decimal  @db.Decimal(12, 2)
+  quantityAllocated Decimal  @db.Decimal(12, 2) @default(0)
+  notes             String?
+
+  @@unique([orderId, materialId])
+}
+
+enum DocumentKind {
+  quote
+  invoice
+}
+
+enum DocumentStatus {
+  draft
+  sent
+  paid
+  void
+}
+
+enum DocumentLineKind {
+  labour
+  material
+  extra
+}
+
+enum PaymentMethod {
+  cash
+  transfer
+  card_offline
+}
+
+model Document {
+  id              String           @id @default(cuid())
+  kind            DocumentKind
+  status          DocumentStatus   @default(draft)
+  reference       String           @unique
+  title           String
+  notes           String?
+  taxRateBps      Int              @default(0)
+  taxInclusive    Boolean          @default(true)
+  overpayNote     String?
+  voidReason      String?
+  sentAt          DateTime?
+  paidAt          DateTime?
+  voidedAt        DateTime?
+  orderId         String
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  issuedById      String
+  issuedBy        User             @relation("DocumentIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
+  sourceQuoteId   String?          @unique
+  sourceQuote     Document?        @relation("QuoteToInvoice", fields: [sourceQuoteId], references: [id], onDelete: SetNull)
+  invoice         Document?        @relation("QuoteToInvoice")
+  lines           DocumentLine[]
+  payments        Payment[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([orderId, createdAt])
+  @@index([status])
+  @@index([kind])
+}
+
+model DocumentLine {
+  id            String           @id @default(cuid())
+  documentId    String
+  document      Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  kind          DocumentLineKind
+  description   String
+  quantity      Decimal          @default(1) @db.Decimal(12, 2)
+  unitAmountInr Int
+  sortOrder     Int              @default(0)
+
+  @@index([documentId, sortOrder])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  documentId    String
+  document      Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  amountInr     Int
+  method        PaymentMethod
+  receivedAt    DateTime
+  notes         String?
+  recordedById  String
+  recordedBy    User          @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime      @default(now())
+
+  @@index([documentId, receivedAt])
+}
+
+enum NotificationKind {
+  order_status
+  appointment_reminder
+  invoice_sent
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  kind      NotificationKind
+  title     String
+  body      String?
+  href      String
+  readAt    DateTime?
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+

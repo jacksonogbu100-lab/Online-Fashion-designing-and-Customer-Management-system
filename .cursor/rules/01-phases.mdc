@@ -1,0 +1,16 @@
+---
+description: Build Sunnex Clothing only in the documented implementation phases
+alwaysApply: true
+---
+
+# Phased delivery
+
+Work strictly against `IMPLEMENTATION.md`.
+
+- Complete the **current phase** before starting the next.
+- Do not scaffold later-phase features (billing, inventory, notifications, etc.) ahead of the plan.
+- Each phase should leave the app runnable and coherent, not a pile of unfinished stubs.
+- When a phase’s acceptance criteria are met, update **Current phase** in `IMPLEMENTATION.md`.
+- Cross-cutting fixes (bugs, types, auth holes) in already-shipped phases are allowed; new product scope is not.
+
+If the user asks for something that belongs in a later phase, acknowledge it, record it under that phase if they want it captured, and return to the current phase.
